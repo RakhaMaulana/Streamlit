@@ -1,0 +1,30 @@
+0 Ayam Pop
+1 Bakso
+2 Dendeng Batokok
+3 Gado-gado
+4 Jagung grontol
+5 Gudeg
+6 Gulai ikan
+7 Gulai tambusu
+8 Gulai tunjang
+9 Ape
+10 Bika ambon
+11 Cenil
+12 Dadar Gulung
+13 Gethuk
+14 Kastengel
+15 Kelepon
+16 Lapis
+17 Lemper 
+18 Lumpur
+19 Nagasari
+20 Pastel
+21 Putri Salju
+22 Risoles
+23 Lanting
+24 Lumpia 
+25 Putu
+26 Rendang
+27 Serabi
+28 Telur Balado
+29 wajik
