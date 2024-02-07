@@ -7,13 +7,21 @@ import numpy as np
 from PIL import Image, ImageOps
 from tensorflow.keras.models import load_model
 import joblib
-from sklearn.metrics import confusion_matrix
 import os
+from streamlit.components.v1 import html
 
-classification_model = load_model("keras_Model.h5", compile=False)
-class_names = [line.strip() for line in open("labels.txt", "r").readlines()]
-regression_model = joblib.load('regression_model_new (2).h5')
+# Create a pop-up to select the model and dataset
+st.sidebar.title("Select Model and Dataset")
+selected_model = st.sidebar.selectbox("Select Model", ["keras_model.h5", "keras_model_best.h5"])
+selected_dataset = "Merged_Dataset" if selected_model == "keras_model.h5" else "Merged_Dataset_Best"
+regression_model = joblib.load('Calories_Detector.h5')
 nutrition_data = pd.read_csv("nutrition.csv")
+label_file = "labels.txt" if selected_model == "keras_model.h5" else "labels_best.txt"
+
+# Load the selected model
+if selected_model:
+    classification_model = load_model(selected_model, compile=False)
+    class_names = [line.strip() for line in open(label_file, "r").readlines()]
 
 def clean_data(data):
     data = data.dropna()
@@ -67,30 +75,72 @@ def get_predictions(image_array):
     predicted_class = class_names[np.argmax(predictions)]
     return predicted_class
 
-def get_confusion_matrix_data():
-    y_true = np.random.choice(class_names, 100)
-    y_pred = np.random.choice(class_names, 100)
-    return y_true, y_pred
+with open(label_file, "r") as label_file:
+    labels = label_file.readlines()
 
-def plot_confusion_matrix(y_true, y_pred, class_names):
-    class_names = list(set(class_names))
-    cm = confusion_matrix(y_true, y_pred, labels=class_names)
-    fig, ax = plt.subplots()
-    sns.heatmap(cm, annot=True, fmt="d", ax=ax, cmap="Blues")
-    ax.set_xticks(np.arange(len(class_names)) + 0.5, minor=False)
-    ax.set_yticks(np.arange(len(class_names)) + 0.5, minor=False)
-    class_names_no_ids = [name.split(' ', 1)[1] for name in class_names]
-    ax.set_xticklabels(class_names_no_ids, rotation=45, ha='right')
-    ax.set_yticklabels(class_names_no_ids, rotation=0)
-    ax.set_xlabel('Predicted')
-    ax.set_ylabel('True')
-    return fig
+menu = [label.strip() for label in labels]
 
 # UI/UX improvements
 st.sidebar.title("Navigation")
-page = st.sidebar.selectbox('Go to', ['Nutrition Prediction', 'Nutrition Data Table', 'Visualizations Data.csv', 'Visualizations Gambar Makanan','About US'])
+page = st.sidebar.selectbox('Go to', ['Home','Nutrition Prediction', 'Nutrition Data Table', 'Visualizations Data Kalori', 'Visualizations Gambar Makanan','About US'])
 
-if page == 'Nutrition Prediction':
+# Function to inject custom CSS
+def local_css(file_name):
+    with open(file_name) as f:
+        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+
+local_css("style.css")
+
+if page == 'Home':
+    st.header("Aplikasi Prediksi Gambar Makanan")
+    st.markdown("""
+    Selamat datang di Aplikasi Prediksi Gambar Makanan. Aplikasi ini dirancang untuk 
+    memprediksi makanan dari gambar yang diunggah dan memberikan informasi nutrisi tentang 
+    makanan tersebut, termasuk kalori. Selain itu, Anda juga dapat melihat perkiraan jarak yang 
+    perlu Anda tempuh untuk membakar kalori tersebut.
+""")
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.header("Akurasi Model")
+        if selected_model == "keras_model_best.h5":
+            st.success("Model terbaik ini memiliki akurasi sebesar 96% dengan dataset gambar yang terdiri dari 10 makanan.")
+        else:
+            st.warning("Model ini memiliki akurasi sebesar 86% dengan dataset gambar yang terdiri dari 30 makanan.")
+
+    with col2:
+        st.header("Daftar Makanan")
+        st.write("Berikut adalah daftar makanan yang dapat diprediksi menggunakan model-model ini:")
+        data = {'Makanan': menu}
+        df = pd.DataFrame(data)
+        st.dataframe(df, width=500, height=200)
+
+    st.markdown("---")
+
+    if selected_model == "keras_model_best.h5":
+        st.subheader("Visualisasi Model Terbaik")
+        st.image("Accuracy_Best.jpg", caption="Akurasi Model Terbaik", width=300)
+        st.markdown("---")
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            st.image(["Accuracy_Epoch_Best.png"], caption=["Akurasi Epoch"], width=300)
+            st.markdown("---")
+        with col2:
+            st.image(["Loss_Best.jpg"], caption=["Loss Model"], width=300)
+        st.image("Confusion_Best.jpg", caption="Confusion Matrix", use_column_width=True)
+    else:
+        st.subheader("Visualisasi Model")
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.image("Accuracy.png", caption="Akurasi Model 1", width=300)
+            st.image("Accuracy_Epoch.png", caption="Akurasi Epoch", width=300)
+        st.markdown("---")
+        with col2:
+            st.image("Accuracy2.png", caption="Akurasi Model 2", width=300)
+            st.image("Loss.jpg", caption="Loss Model", width=300)
+        st.image("Confusion.png", caption="Confusion Matrix", use_column_width=True)
+
+elif page == 'Nutrition Prediction':
     st.title("Nutrition Prediction from Image")
     
     uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
@@ -160,7 +210,11 @@ elif page == 'Nutrition Data Table':
     if 'image' in nutrition_data.columns:
         nutrition_data = nutrition_data.drop(['image'], axis=1)
     nutrition_data = nutrition_data[(nutrition_data[['calories', 'proteins', 'fat', 'carbohydrate']] != 0).all(axis=1)]
+    
+    st.write('<style>div.Widget.row-widget.stDataFrame{overflow: auto !important;}</style>', unsafe_allow_html=True)
+    
     st.dataframe(nutrition_data.describe(), width=750)  # Sesuaikan tinggi sesuai kebutuhan
+    
     nutrition_data = nutrition_data[(nutrition_data[['calories', 'proteins', 'fat', 'carbohydrate']] != 0).all(axis=1)]
     nutrition_data = calculate_protein_calorie_ratio(nutrition_data)
     search_query = st.text_input("Enter a food name to search:")
@@ -168,9 +222,13 @@ elif page == 'Nutrition Data Table':
         nutrition_data = nutrition_data[nutrition_data['name'].str.contains(search_query, case=False, na=False)]
     nutrition_data = nutrition_data.sort_values(by='protein_to_calorie_ratio', ascending=False)
     nutrition_data = format_data(nutrition_data)
-    st.dataframe(nutrition_data)
     
-elif page == 'Visualizations Data.csv':
+    st.write('<style>div.Widget.row-widget.stDataFrame{overflow: auto !important;}</style>', unsafe_allow_html=True)
+    
+    st.dataframe(nutrition_data)
+
+    
+elif page == 'Visualizations Data Kalori':
     st.title("Activity Data Over Time")
     st.write("This section displays the relationships in Data.csv over a specified time period.")
     
@@ -183,8 +241,8 @@ elif page == 'Visualizations Data.csv':
     filtered_data['date'] = pd.to_datetime(filtered_data['date'])
     
     # Show statistics of the data
-    st.write("Summary Statistics:")
-    st.dataframe(filtered_data.describe())
+    st.write("### Summary Statistics:")
+    st.dataframe(filtered_data.describe(), height=300)
     
     # Create lineplot for steps, calories, and distance
     st.subheader("Metrics Over Time")
@@ -200,30 +258,38 @@ elif page == 'Visualizations Data.csv':
     plt.legend()
     plt.xticks(rotation=45)
     plt.tight_layout()
+    st.pyplot(fig)
     
     # Show distribution plots
     st.subheader("Distribution of Metrics")
-    st.image("Distribution of Calories.png", use_column_width=True)
-    st.image("Distribution of Distance.png", use_column_width=True)
-    st.image("Distribution of runDistance.png", use_column_width=True)
-    st.image("Distribution Steps.png", use_column_width=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image("Distribution of Calories.png", caption="Distribution of Calories", use_column_width=True)
+        st.image("Distribution of Distance.png", caption="Distribution of Distance", use_column_width=True)
+    with col2:
+        st.image("Distribution of runDistance.png", caption="Distribution of Run Distance", use_column_width=True)
+        st.image("Distribution Steps.png", caption="Distribution of Steps", use_column_width=True)
     
     # Show additional data visualizations
     st.subheader("Additional Data Visualizations")
-    st.image("Data.png", use_column_width=True)
-    st.image("Heatmap Data.png", use_column_width=True)
+    col1, col2 = st.columns(2)
+    with col1:
+        st.image("Data.png", caption="Data", use_column_width=True)
+    with col2:
+        st.image("Heatmap Data.png", caption="Heatmap Data", use_column_width=True)
 
 elif page == 'Visualizations Gambar Makanan':
-    st.title("Merged Gambar Makanan")
-    st.write("Gambar-gambar berikut adalah contoh dari berbagai folder.")
-    
-    directory = './Merged_Dataset'
+    st.title("Contoh Gambar Makanan")
+    st.write("Berikut adalah contoh gambar makanan dari berbagai folder.")
+
+    # Tentukan direktori dan model yang akan digunakan
+    directory = './Merged_Dataset' if selected_model == "keras_model.h5" else './Merged_Dataset_Best'
     subfolders = [f for f in os.listdir(directory) if os.path.isdir(os.path.join(directory, f))]
     num_subplots = len(subfolders)
     num_cols = 5 
     num_rows = (num_subplots + num_cols - 1) // num_cols  # Number of rows in the subplot grid
     
-    # Create a grid for images
+    # Buat grid untuk menampilkan gambar-gambar
     fig, axes = plt.subplots(num_rows, num_cols, figsize=(24, 16), constrained_layout=True)
     
     for i, folder in enumerate(subfolders):
@@ -235,7 +301,7 @@ elif page == 'Visualizations Gambar Makanan':
             row_idx = i // num_cols
             col_idx = i % num_cols
             axes[row_idx, col_idx].imshow(image)
-            axes[row_idx, col_idx].set_title(folder)
+            axes[row_idx, col_idx].set_title(folder, fontsize=12, pad=5)  # Penambahan padding dan ukuran font
             axes[row_idx, col_idx].axis('off')
             axes[row_idx, col_idx].set_aspect('equal')
     
@@ -245,22 +311,17 @@ elif page == 'Visualizations Gambar Makanan':
             col_idx = i % num_cols
             fig.delaxes(axes[row_idx, col_idx])
     
+    # Tambahkan jarak antara gambar dan tulisan
+    plt.subplots_adjust(hspace=0.5, wspace=0.5)
+
+    # Tampilkan plot menggunakan st.pyplot()
     st.pyplot(fig)
     
-    st.write("-------------------------------------------------")
-    
-    st.title("Confusion Matrix")
-    y_true, y_pred = get_confusion_matrix_data()
-    fig = plot_confusion_matrix(y_true, y_pred, class_names)
-    st.pyplot(fig)
+    # Tambahkan garis horizontal sebagai pemisah
+    st.markdown("***")
     
 elif page == 'About US':
     st.title("Dataset Information 📊")
-
-    # Penjelasan mengenai aplikasi prediksi gambar makanan
-    st.header("Aplikasi Prediksi Gambar Makanan")
-    st.write("Aplikasi ini adalah Aplikasi Prediksi Gambar Makanan. Aplikasi ini dirancang untuk memprediksi makanan dari gambar yang diunggah "
-             "dan memberikan informasi nutrisi tentang makanan tersebut, termasuk kalori. Selain itu, aplikasi ini juga memperkirakan jarak yang perlu Anda tempuh untuk membakar kalori tersebut.")
 
     # Informasi mengenai dataset makanan
     st.header("Dataset Makanan")

@@ -1,0 +1,18 @@
+/* Add your CSS here */
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+header {
+    background-color: #f1f1f1;
+    padding: 10px;
+    text-align: center;
+}
+
+.success {
+    color: green;
+}
+
+.warning {
+    color: orange;
+}

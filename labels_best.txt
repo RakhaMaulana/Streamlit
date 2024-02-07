@@ -1,0 +1,11 @@
+0 Bakso
+1 Dendeng Batokok
+2 Jagung grontol
+3 Ape
+4 Bika Ambon
+5 Gethuk
+6 Nagasari
+7 Pastel
+8 Lanting
+9 Rendang
+10 Telur Balado
